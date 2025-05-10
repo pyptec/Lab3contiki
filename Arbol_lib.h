@@ -47,13 +47,9 @@
 #include "contiki.h"
 #include "net/rime/rime.h"
 #include "random.h"
-
 #include "dev/button-sensor.h"
-
 #include "dev/leds.h"
-
 #include <stdio.h>
-
 #include "tree_n_ary.h"
  ////////////////////////////
  ////////  DEFINE  //////////
@@ -184,7 +180,7 @@ void update_parent(struct beacon *beacon_parent);
 void print_select_table_parent();
 void set_unicast(struct unicast *unicast_var, linkaddr_t *id,struct send_message *mensaje);
 void add_rtx(struct unicast * unicast_var);
-
+void print_beacon(const struct beacon *b);
 
 void set_message(struct  send_message *message,linkaddr_t  *id, int16_t rssi_a);
 

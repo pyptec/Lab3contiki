@@ -41,7 +41,7 @@
  ////////  LIBRARIES  ///////
  ////////////////////////////
 
- #include "Arbol_lib.h"
+#include "Arbol_lib.h"
 
  ////////////////////////////
 ////////  MEMORIA //////////
@@ -71,6 +71,16 @@ void llenar_beacon(struct beacon *b, linkaddr_t id, uint16_t rssi_c)
   linkaddr_copy( &b->id , &id );
 }
 
+void print_beacon(const struct beacon *b) {
+ 
+  printf("Beacon ID=%02x:%02x  con un RSSI de: %u dB\n",
+    b->id.u8[0],
+    b->id.u8[1],
+    b->rssi_c);
+    
+ 
+}
+
 
 void cond_1_neighbor_discovery(linkaddr_t *id_node,struct beacon *beacon_var){
     beacon_var->id.u16 = 0;
@@ -81,10 +91,12 @@ void cond_1_neighbor_discovery(linkaddr_t *id_node,struct beacon *beacon_var){
     }
 }
 
-//add_parent
+/*############################################################################
+incorporar o actualizar un posible “padre” en la lista preferred_parent_list, 
+usando la información del beacon recibido (beacon_var).
+############################################################################*/
 void add_parent(struct beacon *beacon_var){
-    //Recorre lista en un for
-
+    
     struct preferred_parent *p;
     struct preferred_parent *in_l;
 
@@ -100,55 +112,77 @@ void add_parent(struct beacon *beacon_var){
     }
   //Si no conocia este posible padre
   if(p == NULL){
-    //ADD to the list
+    //ADD to the list asignar memoria para un nuevo elemento
     in_l = memb_alloc(&preferred_parent_mem);
     if(in_l == NULL) {            // If we could not allocate a new entry, we give up.
-      printf("ERROR: we could not allocate a new entry for <<preferred_parent_list>> in tree_rssi\n");
+      printf("ERROR: no se pudo asignar memoria para preferred_parent_list\n");
     }else{
-        list_push(preferred_parent_list,in_l); // Add an item to the start of the list.
-        //Guardo los campos del mensaje
-        linkaddr_copy(&(in_l->id), &(beacon_var->id));  // Guardo el id del nodo
-        //rssi_cc es el rssi del padre + el rssi del enlace al padre
+         // Añadir al inicio de la lista
+        list_push(preferred_parent_list,in_l); 
+        // Copiar los datos desde el beacon
+        linkaddr_copy(&(in_l->id), &(beacon_var->id));  
         in_l->rssi_c  = beacon_var->rssi_c;
-        printf("beacon added to list: id = %d rssi_c = %d\n", in_l->id.u8[0], in_l->rssi_c);
+        printf("beacon added to list: id = %d rssi_c = %d\n",
+             in_l->id.u8[0], 
+             in_l->rssi_c);
     }
   }
+  //Mostrar tabla de padres actualizada
   print_select_table_parent();
 
  }
-
+/*############################################################################
+Mostrar tabla de padres actualizada
+############################################################################*/
  void print_select_table_parent(){
    struct preferred_parent *p;
    int16_t cont =0;
    //Recorrer toda la lista
    for(p = list_head(preferred_parent_list); p != NULL; p = list_item_next(p)){
            cont++;
-           printf("En la posicion: %d, esta el nodo %d.%d, con RSII_a de: %d \n",cont,p->id.u8[0],p->id.u8[1],p->rssi_c);
+           printf("En la posicion tabla parents: %d, esta el nodo %d.%d, con RSII_a de: %d \n",
+            cont,p->id.u8[0],
+            p->id.u8[1],
+            p->rssi_c);
 
    }
 }
 
-//UPDATE parent
+/*############################################################################
+recorre tu lista de posibles padres (preferred_parent_list), elige el que tenga 
+el mejor RSSI y lo escribe en la estructura beacon_parent
+############################################################################*/
 void update_parent(struct beacon *beacon_parent){
     struct preferred_parent *p;
     struct beacon new_parent;
+
+    /* 1. Inicializo un “candidato” con valores sentinela:
+       – id.u16 = 0: dirección vacía  
+       – rssi_c  = 1: RSSI muy bajo para que cualquier valor válido lo supere */
+
     new_parent.id.u16 = 0;
     new_parent.rssi_c = 1;
+    /* 2. Recorro toda la lista de padres conocidos */
     for(p = list_head(preferred_parent_list); p != NULL; p = list_item_next(p)){
         if(p->rssi_c != 1){
             if(new_parent.rssi_c == 1 || ((new_parent.rssi_c) < p->rssi_c)){
+                 /* 3. … lo elijo como nuevo candidato */
                 new_parent.rssi_c = p->rssi_c;
                 linkaddr_copy(&(new_parent.id), &(p->id));
             }
         }
     }
     if(beacon_parent->id.u8[0] != 0){
-        printf("#L %d 0\n", beacon_parent->id.u8[0]); // 0: old parent
+        //imprimo su ID como “old parent” */
+        printf("borro: %d \n", beacon_parent->id.u8[0]); 
+        printf("#L %d 0\n", beacon_parent->id.u8[0]); 
     }
+    //Copio el mejor candidato encontrado a beacon_parent
     linkaddr_copy(&(beacon_parent->id), &(new_parent.id));
     beacon_parent->rssi_c = new_parent.rssi_c;
-
-    printf("#L %d 1\n", beacon_parent->id.u8[0]); // 1: new parent
+    //Imprimo el nuevo padre con
+    printf("nuevo padre:%d \n", beacon_parent->id.u8[0]);
+    printf("#L %d 1\n", beacon_parent->id.u8[0]); 
 
  }
 
